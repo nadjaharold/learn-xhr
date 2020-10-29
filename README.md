@@ -60,17 +60,25 @@ XMLHttpRequest.open(method, url[, async[, user[, password]]])
 const http = require("http");
 const fs = require("fs");
 
-// createServer(requestListener), 返り値はhttp.Server ≒ net.Server. This class is used to create a TCP or IPC server.
+// createServer(requestListener), 返り値はhttp.Server ≒ net.Server.
+// This class is used to create a TCP or IPC server.
+// The requestListener is a function which is automatically added to the 'request' event.
 const server = http.createServer((req, res) => {
-  const endpoint = req.url;
+  const endpoint = req.url; // リクエストURLはreq.urlに入っている。
   if (endpoint === "/start") {
     fs.readFile("./index.html", (err, data) => {
+      if (err) {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.write("page not found");
+        return res.end();
+      }
       res.writeHead(200, { "Content-Type": "text/html" });
-      res.write(data);
+      res.write(data); // HTML 文書の解析, DOMの描画
       res.end();
     });
   }
   if (endpoint === "/api") {
+    // req: Emitted each time there is a request. There may be multiple requests per connection (in the case of HTTP Keep-Alive connections).
     req.on("data", function (temp) {
       let data = JSON.parse(temp);
       const len = data.obj.length;
@@ -102,6 +110,10 @@ const server = http.createServer((req, res) => {
       req.on("end", () => {
         res.end(JSON.stringify(answer));
       });
+      // 非同期リクエストを処理している間、 responseText の値は、
+      // データが完全に受信できておらず不完全であっても、常にサーバーから受信した現在のコンテンツを持ちます。
+      // html側のonreadystatechange()で変更を検知し、readyState の値が XMLHttpRequest.DONE (4) になり、
+      // status の値が 200 ("OK") になった場合、コンテンツ全体が受信されたことが分かる。
     });
   }
 });
